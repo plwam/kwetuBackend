@@ -41,8 +41,8 @@ def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
 
     if response is not None:
-        error_code = getattr(exc, 'default_code', 'erreur_inconnue')
-        detail = response.data.get('detail', str(exc))
+        error_code = getattr(exc, "default_code", "erreur_inconnue")
+        detail = response.data.get("detail", str(exc))
 
         if isinstance(detail, dict):
             detail = next(iter(detail.values()))
@@ -50,12 +50,9 @@ def custom_exception_handler(exc, context):
             detail = detail[0]
 
         custom_response = {
-            'success': False,
-            'data': None,
-            'error': {
-                'code': error_code,
-                'detail': str(detail)
-            }
+            "success": False,
+            "data": None,
+            "error": {"code": error_code, "detail": str(detail)},
         }
         response.data = custom_response
 
