@@ -62,8 +62,9 @@ class LogoutView(APIView):
 
 class PartenaireViewSet(viewsets.ModelViewSet):
     permission_classes: ClassVar[list] = [EstAdmin]
-    queryset = Partenaire.objects.select_related("user").all()
+    queryset = Partenaire.objects.select_related("user").all().order_by("-date_creation")
     serializer_class = PartenaireSerializer
+    ordering = ["-date_creation"]
 
     def get_serializer_class(self):
         if self.action in ("update", "partial_update"):
@@ -71,7 +72,7 @@ class PartenaireViewSet(viewsets.ModelViewSet):
         return PartenaireSerializer
 
     def get_queryset(self):
-        return Partenaire.objects.select_related("user").all()
+        return Partenaire.objects.select_related("user").all().order_by("-date_creation")
 
     @action(detail=True, methods=["post"], url_path="generer-cle")
     def generer_cle(self, request, pk=None):
@@ -85,8 +86,9 @@ class PartenaireViewSet(viewsets.ModelViewSet):
 
 class LivreurViewSet(viewsets.ModelViewSet):
     permission_classes: ClassVar[list] = [EstAdmin]
-    queryset = Livreur.objects.select_related("user").all()
+    queryset = Livreur.objects.select_related("user").all().order_by("-date_creation")
     serializer_class = LivreurSerializer
+    ordering = ["-date_creation"]
 
     def get_serializer_class(self):
         if self.action in ("update", "partial_update"):
@@ -94,4 +96,4 @@ class LivreurViewSet(viewsets.ModelViewSet):
         return LivreurSerializer
 
     def get_queryset(self):
-        return Livreur.objects.select_related("user").all()
+        return Livreur.objects.select_related("user").all().order_by("-date_creation")
