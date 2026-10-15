@@ -11,24 +11,24 @@ User = get_user_model()
 
 @transaction.atomic
 def creer_partenaire(data: dict) -> Partenaire:
-    email = data['email']
+    email = data["email"]
     if User.objects.filter(email=email).exists():
         raise EmailDejaUtilise()
 
     user = User.objects.create_user(
         email=email,
-        nom=data['nom'],
-        prenom=data['prenom'],
-        telephone=data['telephone'],
+        nom=data["nom"],
+        prenom=data["prenom"],
+        telephone=data["telephone"],
+        password=data["mot_de_passe"],
         role=Role.PARTENAIRE,
-        password=data['mot_de_passe'],
         actif=True,
     )
 
     partenaire = Partenaire.objects.create(
         user=user,
-        nom_boutique=data['nom_boutique'],
-        url_webhook=data.get('url_webhook'),
+        nom_boutique=data["nom_boutique"],
+        url_webhook=data.get("url_webhook"),
         actif=True,
     )
 
@@ -40,17 +40,17 @@ def creer_partenaire(data: dict) -> Partenaire:
 
 @transaction.atomic
 def creer_livreur(data: dict) -> Livreur:
-    email = data['email']
+    email = data["email"]
     if User.objects.filter(email=email).exists():
         raise EmailDejaUtilise()
 
     user = User.objects.create_user(
         email=email,
-        nom=data['nom'],
-        prenom=data['prenom'],
-        telephone=data['telephone'],
+        nom=data["nom"],
+        prenom=data["prenom"],
+        telephone=data["telephone"],
+        password=data["mot_de_passe"],
         role=Role.LIVREUR,
-        password=data['mot_de_passe'],
         actif=True,
     )
 
@@ -65,14 +65,13 @@ def creer_livreur(data: dict) -> Livreur:
 
 def generer_cle_api(partenaire: Partenaire) -> tuple[CleAPI, str]:
     CleAPI.objects.filter(partenaire=partenaire, statut=StatutCleAPI.ACTIVE).update(
-        statut=StatutCleAPI.REVOQUEE,
-        date_revocation=timezone.now()
+        statut=StatutCleAPI.REVOQUEE, date_revocation=timezone.now()
     )
 
     cle_complete, hash_cle = CleAPI.generer_cle()
     # Format: pk_live_{prefix}_{secret} -> prefixe stocké: pk_live_{prefix}
-    parts = cle_complete.split('_')
-    prefixe = '_'.join(parts[:3])
+    parts = cle_complete.split("_")
+    prefixe = "_".join(parts[:3])
 
     cle_api = CleAPI.objects.create(
         partenaire=partenaire,
@@ -86,12 +85,12 @@ def generer_cle_api(partenaire: Partenaire) -> tuple[CleAPI, str]:
 
 def revoquer_cle_api(cle_api_id: int, admin_user: User) -> CleAPI:
     try:
-        cle_api = CleAPI.objects.select_related('partenaire').get(id=cle_api_id)
+        cle_api = CleAPI.objects.select_related("partenaire").get(id=cle_api_id)
     except CleAPI.DoesNotExist:
         raise CleAPIInvalide()
 
     if cle_api.statut == StatutCleAPI.REVOQUEE:
-        raise CleAPIInvalide('Cette clé est déjà révoquée.')
+        raise CleAPIInvalide("Cette clé est déjà révoquée.")
 
     cle_api.revoquer()
     return cle_api
@@ -99,21 +98,20 @@ def revoquer_cle_api(cle_api_id: int, admin_user: User) -> CleAPI:
 
 def desactiver_partenaire(partenaire_id: int, admin_user: User) -> Partenaire:
     try:
-        partenaire = Partenaire.objects.select_related('user').get(id=partenaire_id)
+        partenaire = Partenaire.objects.select_related("user").get(id=partenaire_id)
     except Partenaire.DoesNotExist:
         raise Partenaire.DoesNotExist()
 
     if not admin_user.role == Role.ADMIN:
-        raise PermissionError('Seul un administrateur peut désactiver un partenaire.')
+        raise PermissionError("Seul un administrateur peut désactiver un partenaire.")
 
     partenaire.actif = False
     partenaire.user.actif = False
-    partenaire.save(update_fields=['actif'])
-    partenaire.user.save(update_fields=['actif'])
+    partenaire.save(update_fields=["actif"])
+    partenaire.user.save(update_fields=["actif"])
 
     CleAPI.objects.filter(partenaire=partenaire, statut=StatutCleAPI.ACTIVE).update(
-        statut=StatutCleAPI.REVOQUEE,
-        date_revocation=timezone.now()
+        statut=StatutCleAPI.REVOQUEE, date_revocation=timezone.now()
     )
 
     return partenaire
@@ -121,53 +119,51 @@ def desactiver_partenaire(partenaire_id: int, admin_user: User) -> Partenaire:
 
 def reactiver_partenaire(partenaire_id: int, admin_user: User) -> Partenaire:
     try:
-        partenaire = Partenaire.objects.select_related('user').get(id=partenaire_id)
+        partenaire = Partenaire.objects.select_related("user").get(id=partenaire_id)
     except Partenaire.DoesNotExist:
         raise Partenaire.DoesNotExist()
 
     if not admin_user.role == Role.ADMIN:
-        raise PermissionError('Seul un administrateur peut réactiver un partenaire.')
+        raise PermissionError("Seul un administrateur peut réactiver un partenaire.")
 
     partenaire.actif = True
     partenaire.user.actif = True
-    partenaire.save(update_fields=['actif'])
-    partenaire.user.save(update_fields=['actif'])
+    partenaire.save(update_fields=["actif"])
+    partenaire.user.save(update_fields=["actif"])
 
     return partenaire
 
 
 def desactiver_livreur(livreur_id: int, admin_user: User) -> Livreur:
     try:
-        livreur = Livreur.objects.select_related('user').get(id=livreur_id)
+        livreur = Livreur.objects.select_related("user").get(id=livreur_id)
     except Livreur.DoesNotExist:
         raise Livreur.DoesNotExist()
 
     if not admin_user.role == Role.ADMIN:
-        raise PermissionError('Seul un administrateur peut désactiver un livreur.')
+        raise PermissionError("Seul un administrateur peut désactiver un livreur.")
 
     livreur.actif = False
     livreur.user.actif = False
-    livreur.save(update_fields=['actif'])
-    livreur.user.save(update_fields=['actif'])
+    livreur.save(update_fields=["actif"])
+    livreur.user.save(update_fields=["actif"])
 
     return livreur
 
 
 def reactiver_livreur(livreur_id: int, admin_user: User) -> Livreur:
     try:
-        livreur = Livreur.objects.select_related('user').get(id=livreur_id)
+        livreur = Livreur.objects.select_related("user").get(id=livreur_id)
     except Livreur.DoesNotExist:
         raise Livreur.DoesNotExist()
 
     if not admin_user.role == Role.ADMIN:
-        raise PermissionError('Seul un administrateur peut réactiver un livreur.')
+        raise PermissionError("Seul un administrateur peut réactiver un livreur.")
 
     livreur.actif = True
     livreur.user.actif = True
     livreur.disponible = False
-    livreur.save(update_fields=['actif', 'disponible'])
-    livreur.user.save(update_fields=['actif'])
+    livreur.save(update_fields=["actif", "disponible"])
+    livreur.user.save(update_fields=["actif"])
 
     return livreur
-
-

@@ -11,15 +11,15 @@ from .views import (
 )
 
 router = DefaultRouter()
-router.register(r'partenaires', PartenaireViewSet, basename='admin-partenaire')
-router.register(r'livreurs', LivreurViewSet, basename='admin-livreur')
+router.register(r"partenaires", PartenaireViewSet, basename="admin-partenaire")
+router.register(r"livreurs", LivreurViewSet, basename="admin-livreur")
 
 urlpatterns = [
-    path('login/', LoginView.as_view(), name='auth-login'),
-    path('refresh/', RefreshView.as_view(), name='auth-refresh'),
-    path('me/', MeView.as_view(), name='auth-me'),
-    path('logout/', LogoutView.as_view(), name='auth-logout'),
-    path('admin/', include(router.urls)),
+    path("login/", LoginView.as_view(), name="auth-login"),
+    path("refresh/", RefreshView.as_view(), name="auth-refresh"),
+    path("me/", MeView.as_view(), name="auth-me"),
+    path("logout/", LogoutView.as_view(), name="auth-logout"),
+    path("admin/", include(router.urls)),
 ]
 
 urlpatterns_admin = router.urls

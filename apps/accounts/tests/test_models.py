@@ -10,24 +10,24 @@ User = get_user_model()
 @pytest.fixture
 def user_partenaire():
     return User.objects.create_user(
-        email='partenaire@test.com',
-        nom='Dupont',
-        prenom='Jean',
-        telephone='+243888888888',
+        email="partenaire@test.com",
+        nom="Dupont",
+        prenom="Jean",
+        telephone="+243888888888",
         role=Role.PARTENAIRE,
-        password='pass123'
+        password="pass123",
     )
 
 
 @pytest.fixture
 def user_livreur():
     return User.objects.create_user(
-        email='livreur@test.com',
-        nom='Martin',
-        prenom='Pierre',
-        telephone='+243777777777',
+        email="livreur@test.com",
+        nom="Martin",
+        prenom="Pierre",
+        telephone="+243777777777",
         role=Role.LIVREUR,
-        password='pass123'
+        password="pass123",
     )
 
 
@@ -35,8 +35,8 @@ def user_livreur():
 def partenaire(user_partenaire):
     return Partenaire.objects.create(
         user=user_partenaire,
-        nom_boutique='Boutique Test',
-        url_webhook='https://test.com/webhook'
+        nom_boutique="Boutique Test",
+        url_webhook="https://test.com/webhook",
     )
 
 
@@ -44,11 +44,11 @@ def partenaire(user_partenaire):
 class TestUserModel:
     def test_creer_user_admin(self):
         user = User.objects.create_superuser(
-            email='admin@test.com',
-            nom='Admin',
-            prenom='Super',
-            telephone='+243999999999',
-            password='admin123'
+            email="admin@test.com",
+            nom="Admin",
+            prenom="Super",
+            telephone="+243999999999",
+            password="admin123",
         )
         assert user.role == Role.ADMIN
         assert user.actif is True
@@ -57,12 +57,12 @@ class TestUserModel:
 
     def test_creer_user_partenaire(self):
         user = User.objects.create_user(
-            email='partenaire@test.com',
-            nom='Dupont',
-            prenom='Jean',
-            telephone='+243888888888',
+            email="partenaire@test.com",
+            nom="Dupont",
+            prenom="Jean",
+            telephone="+243888888888",
             role=Role.PARTENAIRE,
-            password='pass123'
+            password="pass123",
         )
         assert user.role == Role.PARTENAIRE
         assert user.est_partenaire() is True
@@ -70,33 +70,33 @@ class TestUserModel:
 
     def test_creer_user_livreur(self):
         user = User.objects.create_user(
-            email='livreur@test.com',
-            nom='Martin',
-            prenom='Pierre',
-            telephone='+243777777777',
+            email="livreur@test.com",
+            nom="Martin",
+            prenom="Pierre",
+            telephone="+243777777777",
             role=Role.LIVREUR,
-            password='pass123'
+            password="pass123",
         )
         assert user.role == Role.LIVREUR
         assert user.est_livreur() is True
 
     def test_email_unique(self):
         User.objects.create_user(
-            email='test@test.com',
-            nom='Test',
-            prenom='User',
-            telephone='+243111111111',
+            email="test@test.com",
+            nom="Test",
+            prenom="User",
+            telephone="+243111111111",
             role=Role.PARTENAIRE,
-            password='pass123'
+            password="pass123",
         )
         with pytest.raises(Exception):
             User.objects.create_user(
-                email='test@test.com',
-                nom='Test2',
-                prenom='User2',
-                telephone='+243222222222',
+                email="test@test.com",
+                nom="Test2",
+                prenom="User2",
+                telephone="+243222222222",
                 role=Role.LIVREUR,
-                password='pass123'
+                password="pass123",
             )
 
 
@@ -105,18 +105,18 @@ class TestPartenaireModel:
     def test_creer_partenaire(self, user_partenaire):
         partenaire = Partenaire.objects.create(
             user=user_partenaire,
-            nom_boutique='Ma Boutique',
-            url_webhook='https://maboutique.com/webhook'
+            nom_boutique="Ma Boutique",
+            url_webhook="https://maboutique.com/webhook",
         )
-        assert partenaire.nom_boutique == 'Ma Boutique'
+        assert partenaire.nom_boutique == "Ma Boutique"
         assert partenaire.actif is True
 
     def test_cle_api_active(self, partenaire):
         cle = CleAPI.objects.create(
             partenaire=partenaire,
-            prefixe='pk_live_test',
-            hash_cle='hash123',
-            statut=StatutCleAPI.ACTIVE
+            prefixe="pk_live_test",
+            hash_cle="hash123",
+            statut=StatutCleAPI.ACTIVE,
         )
         assert partenaire.cle_api_active() == cle
 
@@ -133,11 +133,11 @@ class TestLivreurModel:
 class TestCleAPIModel:
     def test_generer_cle(self):
         cle_complete, hash_cle = CleAPI.generer_cle()
-        assert cle_complete.startswith('pk_live_')
+        assert cle_complete.startswith("pk_live_")
         assert len(hash_cle) == 64
 
     def test_hasher_cle(self):
-        cle = 'pk_live_test_secret'
+        cle = "pk_live_test_secret"
         hash1 = CleAPI.hasher_cle(cle)
         hash2 = CleAPI.hasher_cle(cle)
         assert hash1 == hash2
@@ -145,24 +145,24 @@ class TestCleAPIModel:
 
     def test_verifier_cle(self, partenaire):
         cle_complete, hash_cle = CleAPI.generer_cle()
-        prefixe = cle_complete.split('_')[0] + '_' + cle_complete.split('_')[1]
+        prefixe = cle_complete.split("_")[0] + "_" + cle_complete.split("_")[1]
         cle_api = CleAPI.objects.create(
             partenaire=partenaire,
             prefixe=prefixe,
             hash_cle=hash_cle,
-            statut=StatutCleAPI.ACTIVE
+            statut=StatutCleAPI.ACTIVE,
         )
         assert cle_api.verifier_cle(cle_complete) is True
-        assert cle_api.verifier_cle('mauvaise_cle') is False
+        assert cle_api.verifier_cle("mauvaise_cle") is False
 
     def test_revoquer(self, partenaire):
         cle_complete, hash_cle = CleAPI.generer_cle()
-        prefixe = cle_complete.split('_')[0] + '_' + cle_complete.split('_')[1]
+        prefixe = cle_complete.split("_")[0] + "_" + cle_complete.split("_")[1]
         cle_api = CleAPI.objects.create(
             partenaire=partenaire,
             prefixe=prefixe,
             hash_cle=hash_cle,
-            statut=StatutCleAPI.ACTIVE
+            statut=StatutCleAPI.ACTIVE,
         )
         cle_api.revoquer()
         cle_api.refresh_from_db()
