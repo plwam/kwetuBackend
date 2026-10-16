@@ -1,17 +1,11 @@
-from django.urls import path
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from apps.accounts.permissions import EstPartenaire
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
+from .views import PartenaireCourseViewSet
 
-class DummyPartenaireView(APIView):
-    permission_classes = [EstPartenaire]
-    
-    def get(self, request):
-        return Response({'detail': 'OK'})
-
+router = DefaultRouter()
+router.register(r"courses", PartenaireCourseViewSet, basename="partenaire-courses")
 
 urlpatterns = [
-    path('courses/', DummyPartenaireView.as_view(), name='partenaire-courses'),
+    path("", include(router.urls)),
 ]
