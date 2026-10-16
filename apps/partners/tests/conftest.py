@@ -79,10 +79,13 @@ def zone_model():
 @pytest.fixture
 def creer_course_factory(course_model, zone_model):
     """Fabrique une course rattachée à un partenaire donné."""
+    compteur = {"n": 0}
 
     def _make(partenaire, statut="creee", prix=Decimal("4.00"), **kwargs):
         zone_depart, _ = zone_model.objects.get_or_create(nom="Goma")
         zone_arrivee, _ = zone_model.objects.get_or_create(nom="Kinshasa")
+        compteur["n"] += 1
+        kwargs.setdefault("reference", f"GM-{compteur['n']:04d}")
         return course_model.objects.create(
             partenaire=partenaire,
             zone_depart=zone_depart,
@@ -90,7 +93,7 @@ def creer_course_factory(course_model, zone_model):
             destinataire_nom="Amani K.",
             destinataire_tel="+243970000000",
             description_colis="Robe en carton",
-            prix=prix,
+            prix_usd=prix,
             statut=statut,
             **kwargs,
         )

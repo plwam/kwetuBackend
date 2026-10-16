@@ -1,24 +1,17 @@
 from django.db import transaction
 
 from .exceptions import AnnulationImpossible, TarifIntrouvable
+from .tasks import envoyer_webhook_task
 
 # Statuts dans lesquels une course peut encore être annulée par le partenaire.
 STATUTS_ANNULABLES = ("creee", "acceptee")
 
-
-def envoyer_webhook(course_id, ancien_statut, nouveau_statut):
-    """
-    Programme l'envoi asynchrone du webhook après validation de la transaction.
-
-    Appelée par ``courses.changer_statut()`` à chaque transition d'état. La
-    tâche est planifiée via ``transaction.on_commit`` et n'est **jamais**
-    attendue : un échec réseau ne peut pas annuler le changement de statut.
-    """
-    from .tasks import envoyer_webhook_task
-
-    transaction.on_commit(
-        lambda: envoyer_webhook_task.delay(course_id, ancien_statut, nouveau_statut)
-    )
+# Point d'entrée inter-app : ``courses.changer_statut()`` importe
+# ``partners.services.envoyer_webhook`` et l'appelle **toujours** via
+# ``.delay()`` (après ``transaction.on_commit``), conformément au document de
+# conception (§2.3 et §4.1). ``envoyer_webhook`` est donc la tâche Celery
+# elle-même, exposée sous le nom prévu par le contrat.
+envoyer_webhook = envoyer_webhook_task
 
 
 @transaction.atomic
@@ -32,9 +25,17 @@ def creer_course(partenaire, data):
     le statut.
     """
     from apps.courses.models import Course
+    from apps.logistics.exceptions import TarifIntrouvable as TarifIntrouvableLogistics
     from apps.logistics.services import calculer_prix
 
-    prix = calculer_prix(data["zone_depart"], data["zone_arrivee"])
+    try:
+        prix = calculer_prix(data["zone_depart"], data["zone_arrivee"])
+    except TarifIntrouvableLogistics:
+        # ``logistics`` signale l'absence de tarif en levant une exception.
+        raise TarifIntrouvable()
+
+    # Rétro-compatibilité : le document de conception décrit ce service comme
+    # renvoyant ``None`` lorsqu'aucun tarif n'existe.
     if prix is None:
         raise TarifIntrouvable()
 
@@ -45,7 +46,7 @@ def creer_course(partenaire, data):
         destinataire_nom=data["destinataire_nom"],
         destinataire_tel=data["destinataire_tel"],
         description_colis=data.get("description_colis", ""),
-        prix=prix,
+        prix_usd=prix,
         statut="creee",
         paye=False,
     )

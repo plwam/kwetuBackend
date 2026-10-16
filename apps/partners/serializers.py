@@ -6,7 +6,7 @@ class HistoriqueSerializer(serializers.Serializer):
 
     ancien_statut = serializers.CharField(read_only=True)
     nouveau_statut = serializers.CharField(read_only=True)
-    date = serializers.DateTimeField(read_only=True)
+    date = serializers.DateTimeField(source="date_evenement", read_only=True)
 
 
 class CourseDetailSerializer(serializers.Serializer):
@@ -25,7 +25,12 @@ class CourseDetailSerializer(serializers.Serializer):
     destinataire_nom = serializers.CharField(read_only=True)
     destinataire_tel = serializers.CharField(read_only=True)
     description_colis = serializers.CharField(read_only=True)
-    prix = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    prix = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        source="prix_usd",
+        read_only=True,
+    )
     statut = serializers.CharField(read_only=True)
     paye = serializers.BooleanField(read_only=True)
     date_creation = serializers.DateTimeField(read_only=True)

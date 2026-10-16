@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 
 from apps.accounts.enums import Role
+from apps.logistics.exceptions import TarifIntrouvable as TarifIntrouvableLogistics
 
 pytestmark = pytest.mark.django_db
 
@@ -85,7 +86,10 @@ class TestCreation:
         assert response.data["statut"] == "creee"
         assert response.data["paye"] is False
 
-    @patch("apps.logistics.services.calculer_prix", return_value=None)
+    @patch(
+        "apps.logistics.services.calculer_prix",
+        side_effect=TarifIntrouvableLogistics(),
+    )
     def test_creation_sans_tarif(self, mock_prix, api_client, partenaire, zone_model):
         zone_depart = zone_model.objects.create(nom="Goma")
         zone_arrivee = zone_model.objects.create(nom="Kinshasa")

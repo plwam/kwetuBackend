@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+from apps.logistics.exceptions import TarifIntrouvable as TarifIntrouvableLogistics
 from apps.partners.exceptions import AnnulationImpossible, TarifIntrouvable
 from apps.partners.services import annuler_course, creer_course
 
@@ -33,12 +34,34 @@ class TestCreerCourse:
         )
 
         assert course.partenaire == partenaire
-        assert str(course.prix) == "7.50"
+        assert str(course.prix_usd) == "7.50"
         assert course.statut == "creee"
         assert course.paye is False
 
     @patch("apps.logistics.services.calculer_prix", return_value=None)
+    def test_aucun_tarif_renvoye_leve_une_erreur(
+        self, mock_prix, partenaire, zone_model
+    ):
+        """Contrat historique : ``calculer_prix`` peut aussi renvoyer ``None``."""
+        zone_depart = zone_model.objects.create(nom="Goma")
+        zone_arrivee = zone_model.objects.create(nom="Kinshasa")
+
+        with pytest.raises(TarifIntrouvable):
+            creer_course(
+                partenaire,
+                {
+                    "zone_depart": zone_depart.id,
+                    "zone_arrivee": zone_arrivee.id,
+                    **DONNEES_COURSE,
+                },
+            )
+
+    @patch(
+        "apps.logistics.services.calculer_prix",
+        side_effect=TarifIntrouvableLogistics(),
+    )
     def test_aucun_tarif_leve_une_erreur(self, mock_prix, partenaire, zone_model):
+        """Contrat réel de ``logistics`` : ``calculer_prix`` lève une exception."""
         zone_depart = zone_model.objects.create(nom="Goma")
         zone_arrivee = zone_model.objects.create(nom="Kinshasa")
 
