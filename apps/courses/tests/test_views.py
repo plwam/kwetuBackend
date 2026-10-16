@@ -36,7 +36,7 @@ class TestAPIAdminCourses(APITestCase):
         self.autre = creer_utilisateur(email="part@example.com", role="PARTENAIRE")
         self.partenaire = Partenaire.objects.create(user=self.autre, nom_boutique="Boutique")
         user_l = creer_utilisateur(email="liv@example.com", role="LIVREUR")        
-        self.livreur = Livreur.objects.create(user=user_l, disponible=True, actif=True)
+        self.livreur = Livreur.objects.create(user=user_l, disponible=True, actif=True, verifie=True)
         zone_a = Zone.objects.create(nom="Zone A")
         zone_b = Zone.objects.create(nom="Zone B")
         self.course = Course.objects.create(

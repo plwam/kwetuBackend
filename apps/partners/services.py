@@ -45,7 +45,7 @@ def creer_course(partenaire, data):
         destinataire_nom=data["destinataire_nom"],
         destinataire_tel=data["destinataire_tel"],
         description_colis=data.get("description_colis", ""),
-        prix=prix,
+        prix_usd=prix,
         statut="creee",
         paye=False,
     )

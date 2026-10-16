@@ -33,7 +33,7 @@ class TestCreerCourse:
         )
 
         assert course.partenaire == partenaire
-        assert str(course.prix) == "7.50"
+        assert str(course.prix_usd) == "7.50"
         assert course.statut == "creee"
         assert course.paye is False
 

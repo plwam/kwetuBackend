@@ -7,7 +7,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
-from .enums import Role, StatutCleAPI
+from .enums import Role, StatutCleAPI, StatutDocument
 
 
 class UserManager(BaseUserManager):
@@ -125,6 +125,10 @@ class Livreur(models.Model):
     )
     disponible = models.BooleanField(default=False, verbose_name="Disponible")
     actif = models.BooleanField(default=True, verbose_name="Actif")
+    verifie = models.BooleanField(
+        default=False,
+        verbose_name="Compte vérifié (documents obligatoires validés)",
+    )
     date_creation = models.DateTimeField(
         auto_now_add=True, verbose_name="Date de création"
     )
@@ -192,3 +196,64 @@ class CleAPI(models.Model):
         self.statut = StatutCleAPI.REVOQUEE
         self.date_revocation = timezone.now()
         self.save(update_fields=["statut", "date_revocation"])
+
+
+class DocumentRequis(models.Model):
+    """Document que l'administrateur exige pour vérifier un livreur."""
+
+    nom = models.CharField(max_length=150, unique=True, verbose_name="Nom du document")
+    description = models.TextField(
+        blank=True, verbose_name="Consignes à respecter"
+    )
+    obligatoire = models.BooleanField(default=True, verbose_name="Obligatoire")
+    actif = models.BooleanField(default=True, verbose_name="Actif")
+    ordre = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "accounts_document_requis"
+        ordering = ["ordre", "nom"]
+        verbose_name = "Document requis"
+        verbose_name_plural = "Documents requis"
+
+    def __str__(self):
+        return self.nom
+
+
+class DocumentLivreur(models.Model):
+    """Document fourni par un livreur pour un document requis donné."""
+
+    livreur = models.ForeignKey(
+        Livreur,
+        on_delete=models.CASCADE,
+        related_name="documents",
+        verbose_name="Livreur",
+    )
+    document_requis = models.ForeignKey(
+        DocumentRequis,
+        on_delete=models.PROTECT,
+        related_name="documents_livreurs",
+        verbose_name="Document requis",
+    )
+    fichier = models.FileField(upload_to="documents/%Y/%m/", verbose_name="Fichier")
+    statut = models.CharField(
+        max_length=20,
+        choices=StatutDocument.choices(),
+        default=StatutDocument.EN_ATTENTE,
+        verbose_name="Statut",
+    )
+    commentaire = models.TextField(blank=True, verbose_name="Commentaire admin")
+    date_envoi = models.DateTimeField(auto_now_add=True, verbose_name="Date d'envoi")
+    date_validation = models.DateTimeField(
+        null=True, blank=True, verbose_name="Date de validation"
+    )
+
+    class Meta:
+        db_table = "accounts_document_livreur"
+        unique_together = [("livreur", "document_requis")]
+        ordering = ["-date_envoi", "-id"]
+        verbose_name = "Document livreur"
+        verbose_name_plural = "Documents livreurs"
+
+    def __str__(self):
+        return f"{self.livreur_id} - {self.document_requis.nom} ({self.statut})"

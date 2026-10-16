@@ -15,6 +15,9 @@ class ZoneViewSetTest(TestCase):
         self.client = APIClient()
         self.admin = User.objects.create_user(
             email="admin@test.com",
+            nom="Admin",
+            prenom="Test",
+            telephone="+243970000010",
             password="password123",
             role="ADMIN",
         )
@@ -71,6 +74,9 @@ class ZoneViewSetTest(TestCase):
         """Un partenaire ne peut pas accéder à l'admin → 403."""
         partenaire = User.objects.create_user(
             email="partenaire@test.com",
+            nom="Partenaire",
+            prenom="Test",
+            telephone="+243970000011",
             password="password123",
             role="PARTENAIRE",
         )
@@ -87,6 +93,9 @@ class TarifViewSetTest(TestCase):
         self.client = APIClient()
         self.admin = User.objects.create_user(
             email="admin@test.com",
+            nom="Admin",
+            prenom="Test",
+            telephone="+243970000010",
             password="password123",
             role="ADMIN",
         )

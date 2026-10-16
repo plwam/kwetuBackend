@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db import IntegrityError
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -156,6 +157,7 @@ class DevisView(APIView):
     authentication_classes = [AuthentificationCleAPI]
     permission_classes = [EstPartenaire]
 
+    @extend_schema(request=DevisRequestSerializer, responses=DevisResponseSerializer)
     def post(self, request, *args, **kwargs):
         """
         Calcule le prix d'un trajet entre deux zones.

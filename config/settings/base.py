@@ -144,6 +144,13 @@ SPECTACULAR_SETTINGS = {
             'name': 'X-API-Key',
         },
     },
+    'ENUM_NAME_OVERRIDES': {
+        'RoleEnum': 'apps.accounts.enums.Role',
+        'StatutCleAPIEnum': 'apps.accounts.enums.StatutCleAPI',
+        'StatutCourseEnum': 'apps.courses.enums.StatutCourse',
+        'StatutAffectationEnum': 'apps.courses.enums.StatutAffectation',
+        'StatutZoneEnum': 'apps.logistics.models.StatutZone',
+    },
 }
 
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',')

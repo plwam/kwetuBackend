@@ -24,7 +24,7 @@ class BaseTestVues(TestCase):
 
     def setUp(self):
         cache.clear()
-        simulation = patch("apps.partners.services.envoyer_webhook.delay")
+        simulation = patch("apps.partners.services.envoyer_webhook")
         simulation.start()
         self.addCleanup(simulation.stop)
         self.livreur = creer_livreur("patrick")

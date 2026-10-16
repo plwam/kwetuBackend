@@ -9,7 +9,12 @@ class ZoneSerializer(serializers.ModelSerializer):
     """
     Serializer pour le modèle Zone.
     Utilisé pour le CRUD admin.
+
+    La contrainte d'unicité du nom n'est pas validée ici : ``ZoneViewSet.create``
+    la gère explicitement pour renvoyer le code ``zone_existe``.
     """
+
+    nom = serializers.CharField(max_length=100)
 
     class Meta:
         model = Zone

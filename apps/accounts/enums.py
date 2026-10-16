@@ -30,3 +30,13 @@ class StatutCleAPI(str, Enum):
     @classmethod
     def choices(cls):
         return [(tag.value, tag.name) for tag in cls]
+
+
+class StatutDocument(str, Enum):
+    EN_ATTENTE = "en_attente"
+    VALIDE = "valide"
+    REJETE = "rejete"
+
+    @classmethod
+    def choices(cls):
+        return [(tag.value, tag.name) for tag in cls]

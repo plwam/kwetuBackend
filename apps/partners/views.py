@@ -1,6 +1,9 @@
-﻿from rest_framework import status, viewsets
+﻿from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.accounts.authentication import AuthentificationCleAPI
@@ -9,9 +12,9 @@ from apps.accounts.permissions import EstPartenaire
 from .permissions import EstPartenaireOwner
 from .selectors import get_courses_du_partenaire
 from .serializers import (
-    CourseCreateSerializer,
-    CourseDetailSerializer,
-    StatutSerializer,
+    PartenaireCourseCreateSerializer,
+    PartenaireCourseDetailSerializer,
+    PartenaireStatutSerializer,
 )
 from .services import annuler_course
 
@@ -133,10 +136,10 @@ class PartenaireCourseViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if self.action == "create":
-            return CourseCreateSerializer
+            return PartenaireCourseCreateSerializer
         if self.action == "statut":
-            return StatutSerializer
-        return CourseDetailSerializer
+            return PartenaireStatutSerializer
+        return PartenaireCourseDetailSerializer
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -150,7 +153,7 @@ class PartenaireCourseViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         course = serializer.save()
         return Response(
-            CourseDetailSerializer(course).data,
+            PartenaireCourseDetailSerializer(course).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -158,9 +161,30 @@ class PartenaireCourseViewSet(viewsets.ModelViewSet):
     def annuler(self, request, pk=None):
         course = self.get_object()
         course = annuler_course(course)
-        return Response(CourseDetailSerializer(course).data, status=status.HTTP_200_OK)
+        return Response(
+            PartenaireCourseDetailSerializer(course).data, status=status.HTTP_200_OK
+        )
 
     @action(detail=True, methods=["get"], url_path="statut")
     def statut(self, request, pk=None):
         course = self.get_object()
-        return Response(StatutSerializer(course).data, status=status.HTTP_200_OK)
+        return Response(PartenaireStatutSerializer(course).data, status=status.HTTP_200_OK)
+
+
+class PartenaireDashboardView(APIView):
+    """Tableau de bord du partenaire.
+
+    Renvoie une vue d'ensemble de SES propres courses (répartition par statut) et
+    le montant total livré en USD. Les statistiques sont calculées côté backend
+    et cloisonnées au partenaire authentifié (JWT **ou** clé API ``X-API-Key``).
+    """
+
+    authentication_classes = [JWTAuthentication, AuthentificationCleAPI]
+    permission_classes = [EstPartenaire]
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request):
+        from apps.accounts.dashboards import stats_partenaire
+
+        donnees = stats_partenaire(request.user.partenaire)
+        return Response({"success": True, "data": donnees, "error": None})

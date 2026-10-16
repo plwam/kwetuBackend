@@ -43,6 +43,25 @@ class EstLivreur(permissions.BasePermission):
         )
 
 
+class EstLivreurProfil(permissions.BasePermission):
+    """Autorise un livreur authentifié ayant un profil, **même non vérifié**.
+
+    Utilisé pour les endpoints d'onboarding (profil, documents, dashboard) :
+    un livreur non vérifié doit pouvoir compléter son dossier.
+    """
+
+    message = "Accès réservé aux livreurs."
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and user.role == Role.LIVREUR
+            and getattr(user, "livreur", None) is not None
+        )
+
+
 class EstPartenaireOwner(permissions.BasePermission):
     message = "Vous ne pouvez accéder qu'à vos propres ressources."
 

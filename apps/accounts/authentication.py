@@ -1,7 +1,22 @@
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework import authentication, exceptions
 
 from .enums import StatutCleAPI
 from .models import CleAPI
+
+
+class AuthentificationCleAPIExtension(OpenApiAuthenticationExtension):
+    """Décrit le schéma OpenAPI de l'authentification par clé API."""
+
+    target_class = "apps.accounts.authentication.AuthentificationCleAPI"
+    name = "ApiKeyAuth"
+
+    def get_security_definition(self, auto_schema):
+        return {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-API-Key",
+        }
 
 
 class AuthentificationCleAPI(authentication.BaseAuthentication):

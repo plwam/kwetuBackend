@@ -28,7 +28,7 @@ class BaseTestServices(TestCase):
     def setUp(self):
         cache.clear()
 # drivers ne teste pas l'envoi HTTP du webhook : il est simulé.
-        simulation = patch("apps.partners.services.envoyer_webhook.delay")
+        simulation = patch("apps.partners.services.envoyer_webhook")
         self.webhook_simule = simulation.start()
         self.addCleanup(simulation.stop)
         self.livreur = creer_livreur("patrick")
@@ -37,7 +37,10 @@ class BaseTestServices(TestCase):
 class TestAccepterCourse(BaseTestServices):
     def test_acceptation_reussie(self):
         course = creer_course()
-        resultat = services.accepter_course(course.id, self.livreur)
+        # Le webhook est déclenché via transaction.on_commit : il faut exécuter
+        # les callbacks pour observer l'appel dans un TestCase.
+        with self.captureOnCommitCallbacks(execute=True):
+            resultat = services.accepter_course(course.id, self.livreur)
         course.refresh_from_db()
         self.assertEqual(resultat.statut, StatutCourse.ACCEPTEE)
         self.assertEqual(course.statut, StatutCourse.ACCEPTEE)

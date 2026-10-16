@@ -1,9 +1,12 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .exceptions import EmailDejaUtilise
-from .models import CleAPI, Livreur, Partenaire, User
+from .models import CleAPI, DocumentLivreur, DocumentRequis, Livreur, Partenaire, User
+from .validators import valider_fichier_document
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -52,11 +55,13 @@ class UserMeSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
     def get_partenaire(self, obj):
         if hasattr(obj, "partenaire") and obj.partenaire:
             return PartenaireSerializer(obj.partenaire).data
         return None
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
     def get_livreur(self, obj):
         if hasattr(obj, "livreur") and obj.livreur:
             return LivreurSerializer(obj.livreur).data
@@ -104,7 +109,7 @@ class PartenaireSerializer(serializers.ModelSerializer):
             )
         return value
 
-    def get_cle_api(self, obj):
+    def get_cle_api(self, obj) -> str | None:
         return getattr(obj, "_cle_api_complete", None)
 
     def create(self, validated_data):
@@ -142,9 +147,10 @@ class LivreurSerializer(serializers.ModelSerializer):
             "mot_de_passe",
             "disponible",
             "actif",
+            "verifie",
             "date_creation",
         )
-        read_only_fields = ("id", "date_creation")
+        read_only_fields = ("id", "date_creation", "verifie")
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -160,7 +166,7 @@ class LivreurSerializer(serializers.ModelSerializer):
 class LivreurUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Livreur
-        fields = ("disponible", "actif")
+        fields = ("disponible", "actif", "verifie")
         read_only_fields = ("id", "date_creation")
 
 
@@ -248,3 +254,191 @@ class LoginSerializer(TokenObtainPairSerializer):
         token["role"] = user.role
         token["user_id"] = user.id
         return token
+
+
+class LivreurSignupSerializer(serializers.Serializer):
+    """Inscription autonome d'un livreur.
+
+    Champs : ``email``, ``password``, ``confirmation``. Le nom, le prénom et le
+    téléphone seront complétés ensuite via l'endpoint de profil.
+    """
+
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
+    )
+    confirmation = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
+    )
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise EmailDejaUtilise()
+        return value
+
+    def validate(self, attrs):
+        from django.contrib.auth.password_validation import validate_password
+
+        if attrs["password"] != attrs["confirmation"]:
+            raise serializers.ValidationError(
+                {"confirmation": "La confirmation ne correspond pas au mot de passe."}
+            )
+        try:
+            validate_password(attrs["password"])
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({"password": list(e.messages)})
+        return attrs
+
+    def create(self, validated_data):
+        from .services import inscrire_livreur
+
+        return inscrire_livreur(validated_data["email"], validated_data["password"])
+
+
+class LivreurProfilUpdateSerializer(serializers.Serializer):
+    """Attributs du profil qu'un livreur peut compléter lui-même."""
+
+    nom = serializers.CharField(max_length=100)
+    prenom = serializers.CharField(max_length=100)
+    telephone = serializers.CharField(max_length=20)
+
+
+def resume_documents_livreur(livreur) -> list:
+    """Liste, pour un livreur, chaque document requis avec son statut."""
+    existants = {d.document_requis_id: d for d in livreur.documents.all()}
+    resultat = []
+    for requis in DocumentRequis.objects.filter(actif=True):
+        document = existants.get(requis.id)
+        resultat.append(
+            {
+                "document_requis": requis.id,
+                "nom": requis.nom,
+                "description": requis.description,
+                "obligatoire": requis.obligatoire,
+                "statut": document.statut if document else "manquant",
+                "fichier": document.fichier.url if document and document.fichier else None,
+                "commentaire": document.commentaire if document else "",
+                "date_envoi": document.date_envoi if document else None,
+            }
+        )
+    return resultat
+
+
+class LivreurProfilSerializer(serializers.ModelSerializer):
+    """Vue complète du profil d'un livreur (lecture seule)."""
+
+    nom_complet = serializers.CharField(read_only=True)
+    verifie = serializers.BooleanField(source="livreur.verifie", read_only=True)
+    disponible = serializers.BooleanField(source="livreur.disponible", read_only=True)
+    livreur_actif = serializers.BooleanField(source="livreur.actif", read_only=True)
+    profil_complet = serializers.SerializerMethodField()
+    documents = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "email",
+            "nom",
+            "prenom",
+            "telephone",
+            "role",
+            "nom_complet",
+            "verifie",
+            "disponible",
+            "livreur_actif",
+            "profil_complet",
+            "documents",
+        )
+        read_only_fields = fields
+
+    def get_profil_complet(self, obj) -> bool:
+        return bool(obj.nom and obj.prenom and obj.telephone)
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_documents(self, obj):
+        return resume_documents_livreur(obj.livreur)
+
+
+class DocumentRequisSerializer(serializers.ModelSerializer):
+    """CRUD administrateur des documents exigés aux livreurs."""
+
+    class Meta:
+        model = DocumentRequis
+        fields = (
+            "id",
+            "nom",
+            "description",
+            "obligatoire",
+            "actif",
+            "ordre",
+            "date_creation",
+        )
+        read_only_fields = ("id", "date_creation")
+
+
+class DocumentLivreurSerializer(serializers.ModelSerializer):
+    """Représentation d'un document envoyé par un livreur (admin)."""
+
+    document_requis_nom = serializers.CharField(
+        source="document_requis.nom", read_only=True
+    )
+    livreur_nom = serializers.CharField(
+        source="livreur.user.nom_complet", read_only=True
+    )
+    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+
+    class Meta:
+        model = DocumentLivreur
+        fields = (
+            "id",
+            "livreur",
+            "livreur_nom",
+            "document_requis",
+            "document_requis_nom",
+            "fichier",
+            "statut",
+            "statut_display",
+            "commentaire",
+            "date_envoi",
+            "date_validation",
+        )
+        read_only_fields = (
+            "id",
+            "livreur",
+            "statut",
+            "commentaire",
+            "date_envoi",
+            "date_validation",
+        )
+
+
+class DocumentUploadSerializer(serializers.Serializer):
+    """Envoi (ou remplacement) d'un document par un livreur.
+
+    Le fichier doit être un PDF, PNG ou JPEG (le SVG est refusé).
+    """
+
+    document_requis = serializers.PrimaryKeyRelatedField(
+        queryset=DocumentRequis.objects.filter(actif=True)
+    )
+    fichier = serializers.FileField()
+
+    def validate_fichier(self, value):
+        return valider_fichier_document(value)
+
+    def create(self, validated_data):
+        from .services import enregistrer_document
+
+        livreur = self.context["livreur"]
+        return enregistrer_document(
+            livreur,
+            validated_data["document_requis"],
+            validated_data["fichier"],
+        )
+
+
+class DocumentStatutSerializer(serializers.Serializer):
+    """Commentaire optionnel accompagnant la validation/rejet d'un document."""
+
+    commentaire = serializers.CharField(required=False, allow_blank=True, default="")

@@ -25,4 +25,11 @@ class EstLivreur(BasePermission):
                 "Votre compte livreur est désactivé.", code="compte_desactive"
             )
         
+        if not profil_livreur.verifie:
+            raise PermissionDenied(
+                "Votre compte livreur n'est pas encore vérifié. "
+                "Complétez votre profil et faites valider vos documents.",
+                code="compte_non_verifie",
+            )
+        
         return True 

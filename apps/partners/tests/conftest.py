@@ -90,7 +90,7 @@ def creer_course_factory(course_model, zone_model):
             destinataire_nom="Amani K.",
             destinataire_tel="+243970000000",
             description_colis="Robe en carton",
-            prix=prix,
+            prix_usd=prix,
             statut=statut,
             **kwargs,
         )

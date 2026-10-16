@@ -186,7 +186,7 @@ def livrer_avec_code(course_id, livreur, code):
         restantes = _enregistrer_echec_code(course, livreur)
         
         if restantes is None:
-            raise sCodeIncorrect()
+            raise CodeIncorrect()
         
         if restantes == 0:
             raise CodeIncorrect(

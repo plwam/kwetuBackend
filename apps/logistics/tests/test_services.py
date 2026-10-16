@@ -1,7 +1,10 @@
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from apps.accounts.models import Partenaire
+from apps.courses.models import Course
 from apps.logistics.exceptions import TarifIntrouvable
 from apps.logistics.models import Tarif, Zone
 from apps.logistics.services import (
@@ -10,6 +13,8 @@ from apps.logistics.services import (
     modifier_tarif,
     zone_est_utilisee,
 )
+
+User = get_user_model()
 
 
 class CalculerPrixTest(TestCase):
@@ -127,10 +132,34 @@ class ZoneEstUtiliseeTest(TestCase):
     """Tests du service zone_est_utilisee()."""
 
     def setUp(self):
-        """Préparation : créer zones."""
+        """Préparation : créer zones et un partenaire."""
         self.zone_a = Zone.objects.create(nom="Himbi")
         self.zone_b = Zone.objects.create(nom="Birene")
         self.zone_c = Zone.objects.create(nom="Katindo")
+        user = User.objects.create_user(
+            email="boutique@test.com",
+            nom="Boutique",
+            prenom="Test",
+            telephone="+243970000012",
+            password="pass123",
+            role="PARTENAIRE",
+        )
+        self.partenaire = Partenaire.objects.create(
+            user=user, nom_boutique="Boutique Test"
+        )
+
+    def _creer_course(self, **kwargs):
+        valeurs = {
+            "partenaire": self.partenaire,
+            "zone_depart": self.zone_a,
+            "zone_arrivee": self.zone_b,
+            "destinataire_nom": "Amani K.",
+            "destinataire_tel": "+243970000099",
+            "description_colis": "Colis",
+            "prix_usd": Decimal("4.00"),
+        }
+        valeurs.update(kwargs)
+        return Course.objects.create(**valeurs)
 
     def test_zone_non_utilisee(self):
         """Sans course, la zone n'est pas utilisée."""
@@ -138,35 +167,17 @@ class ZoneEstUtiliseeTest(TestCase):
 
     def test_zone_utilisee_en_depart(self):
         """Une zone utilisée en départ est utilisée."""
-        from apps.courses.models import Course
-
-        Course.objects.create(
-            zone_depart=self.zone_a,
-            zone_arrivee=self.zone_b,
-            # ... autres champs obligatoires ...
-        )
+        self._creer_course(zone_depart=self.zone_a, zone_arrivee=self.zone_b)
         self.assertTrue(zone_est_utilisee(self.zone_a.id))
 
     def test_zone_utilisee_en_arrivee(self):
         """Une zone utilisée en arrivée est utilisée."""
-        from apps.courses.models import Course
-
-        Course.objects.create(
-            zone_depart=self.zone_b,
-            zone_arrivee=self.zone_a,
-            # ... autres champs obligatoires ...
-        )
+        self._creer_course(zone_depart=self.zone_b, zone_arrivee=self.zone_a)
         self.assertTrue(zone_est_utilisee(self.zone_a.id))
 
     def test_zone_non_utilisee_parmi_dautres(self):
         """Une zone non utilisée n'est pas marquée utilisée."""
-        from apps.courses.models import Course
-
-        Course.objects.create(
-            zone_depart=self.zone_a,
-            zone_arrivee=self.zone_b,
-            # ...
-        )
+        self._creer_course(zone_depart=self.zone_a, zone_arrivee=self.zone_b)
         self.assertFalse(zone_est_utilisee(self.zone_c.id))
 
 

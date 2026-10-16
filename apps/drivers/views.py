@@ -1,4 +1,6 @@
 from django.http import Http404
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import (
     APIException,
@@ -13,6 +15,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView, set_rollback
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from apps.accounts.dashboards import stats_livreur
+from apps.accounts.permissions import EstLivreurProfil
 from apps.courses.exceptions import ConflitConcurrence, TransitionInvalide
 from apps.drivers import services
 from apps.drivers.exceptions import ErreurLivreur
@@ -73,7 +77,7 @@ def _traduire_exception(exception):
     if isinstance(exception, PermissionDenied):
         code = getattr(exception.detail, "code", None)
         
-        if code not in ("acces_refuse", "compte_desactive"):
+        if code not in ("acces_refuse", "compte_desactive", "compte_non_verifie"):
             code = "acces_refuse"
         return code, str(exception.detail), status.HTTP_403_FORBIDDEN
     
@@ -139,7 +143,8 @@ class VueLivreurDeBase(APIView):
     # -------------------------------------------------------------------------
 class VueCoursesDisponibles(VueLivreurDeBase):
     """CU-16 VoirCourseDisponible — GET /courses/disponibles/"""
-    
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request):
         donnees = self.donnees_paginees(
             services.courses_disponibles(), SerialiseurCourseDisponible
@@ -148,6 +153,8 @@ class VueCoursesDisponibles(VueLivreurDeBase):
 
 class VueCoursesEnCours(VueLivreurDeBase):
     """Courses acceptées ou récupérées — GET /courses/en-cours/"""
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request):
         donnees = self.donnees_paginees(
             services.courses_en_cours_du_livreur(self.livreur_connecte),
@@ -157,6 +164,8 @@ class VueCoursesEnCours(VueLivreurDeBase):
 
 class VueHistoriqueJour(VueLivreurDeBase):
     """CU-21 ConsulterHistoriqueJour — GET /historique/"""
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request):
         livreur = self.livreur_connecte
         donnees = self.donnees_paginees(
@@ -169,18 +178,24 @@ class VueHistoriqueJour(VueLivreurDeBase):
 
 class VueAccepterCourse(VueLivreurDeBase):
     """CU-17 AccepterCourse — POST /courses/{id}/accepter/"""
+
+    @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
     def post(self, request, pk):
         course = services.accepter_course(pk, self.livreur_connecte)
         return reponse_succes(SerialiseurCourseEnCours(course).data)
 
 class VueMarquerRecupere(VueLivreurDeBase):
     """CU-18 MarquerColisRécupéré — POST /courses/{id}/recuperer/"""
+
+    @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
     def post(self, request, pk):
         course = services.marquer_recupere(pk, self.livreur_connecte)
         return reponse_succes(SerialiseurCourseEnCours(course).data)
 
 class VueLivrerAvecCode(VueLivreurDeBase):
     """CU-19 LivrerAvecCode — POST /courses/{id}/livrer/  {"code": "..."}"""
+
+    @extend_schema(request=SerialiseurLivraison, responses=OpenApiTypes.OBJECT)
     def post(self, request, pk):
         serialiseur = SerialiseurLivraison(data=request.data)
         serialiseur.is_valid(raise_exception=True)
@@ -191,6 +206,25 @@ class VueLivrerAvecCode(VueLivreurDeBase):
 
 class VueCocherPaye(VueLivreurDeBase):
     """CU-20 CocherPayé — POST /courses/{id}/payer/"""
+
+    @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
     def post(self, request, pk):
         course = services.marquer_paye(pk, self.livreur_connecte)
         return reponse_succes(SerialiseurCourseEnCours(course).data)
+
+
+class VueLivreurDashboard(VueLivreurDeBase):
+    """Tableau de bord du livreur — GET /livreur/dashboard/.
+
+    Vue d'ensemble de l'activité et du dossier du livreur : nombre de courses
+    disponibles, en cours et livrées aujourd'hui, gains du jour, état de
+    vérification et avancement des documents obligatoires. Cet endpoint reste
+    accessible même si le compte n'est pas encore vérifié, pour que le livreur
+    puisse suivre son dossier.
+    """
+
+    permission_classes = [EstLivreurProfil]
+
+    @extend_schema(responses=OpenApiTypes.OBJECT)
+    def get(self, request):
+        return reponse_succes(stats_livreur(self.livreur_connecte))

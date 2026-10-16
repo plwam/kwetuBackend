@@ -14,23 +14,41 @@ CODE_DE_CONFIRMATION = "483920"
 _numero_de_course = count(1000)
 Utilisateur = get_user_model()
 
-def creer_livreur(nom="patrick", actif=True):
+def creer_livreur(nom="patrick", actif=True, verifie=True):
     utilisateur = Utilisateur.objects.create_user(
-        username=nom, role="LIVREUR",
+        email=f"{nom}@test.com",
+        nom=nom,
+        prenom="Livreur",
         telephone="+243970000001",
+        password="pass123",
+        role="LIVREUR",
     )
-    
-    return Livreur.objects.create(user=utilisateur, actif=actif)
+
+    return Livreur.objects.create(user=utilisateur, actif=actif, verifie=verifie)
 
 def creer_partenaire(nom="kivu_shop"):
-    utilisateur = Utilisateur.objects.create_user(
-        username=nom, role="PARTENAIRE"
+    utilisateur, _ = Utilisateur.objects.get_or_create(
+        email=f"{nom}@test.com",
+        defaults={
+            "nom": nom,
+            "prenom": "Boutique",
+            "telephone": "+243970000002",
+            "role": "PARTENAIRE",
+        },
     )
-    return Partenaire.objects.create(user=utilisateur, nom_boutique="Kivu Shop")
+    partenaire, _ = Partenaire.objects.get_or_create(
+        user=utilisateur, defaults={"nom_boutique": "Kivu Shop"}
+    )
+    return partenaire
 
 def creer_administrateur(nom="admin1"):
     return Utilisateur.objects.create_user(
-        username=nom, role="ADMIN"
+        email=f"{nom}@test.com",
+        nom=nom,
+        prenom="Admin",
+        telephone="+243970000003",
+        password="pass123",
+        role="ADMIN",
     )
 
 def creer_zone(nom):
@@ -42,7 +60,7 @@ def creer_course(partenaire=None, **champs):
     numero = next(_numero_de_course)
     valeurs = {
         "reference": f"GM-{numero}",
-        "partenaire": partenaire or creer_partenaire(f"boutique{numero}"),
+        "partenaire": partenaire or creer_partenaire(),
         "zone_depart": creer_zone("Himbi"),
         "zone_arrivee": creer_zone("Birere"),"destinataire_nom": "Amani K.",
         "destinataire_tel": "+243970000099",

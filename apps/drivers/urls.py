@@ -6,6 +6,7 @@ from apps.drivers.views import (
     VueCoursesDisponibles,
     VueCoursesEnCours,
     VueHistoriqueJour,
+    VueLivreurDashboard,
     VueLivrerAvecCode,
     VueMarquerRecupere,
 )
@@ -13,6 +14,7 @@ from apps.drivers.views import (
 app_name = "drivers"
 
 urlpatterns = [
+    path("dashboard/", VueLivreurDashboard.as_view(), name="dashboard"),
     path("courses/disponibles/", VueCoursesDisponibles.as_view(),
          name="courses-disponibles"),
     path("courses/en-cours/", VueCoursesEnCours.as_view(),

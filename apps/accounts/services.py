@@ -2,14 +2,14 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
-from .enums import Role, StatutCleAPI
+from .enums import Role, StatutCleAPI, StatutDocument
 from .exceptions import (
     AncienMotDePasseInvalide,
     CleAPIInvalide,
     EmailDejaUtilise,
     MotDePasseIdentique,
 )
-from .models import CleAPI, Livreur, Partenaire
+from .models import CleAPI, DocumentLivreur, DocumentRequis, Livreur, Partenaire
 
 User = get_user_model()
 
@@ -65,6 +65,7 @@ def creer_livreur(data: dict) -> Livreur:
         user=user,
         disponible=False,
         actif=True,
+        verifie=True,
     )
 
     return livreur
@@ -203,3 +204,128 @@ def changer_mot_de_passe(
 
     for token in OutstandingToken.objects.filter(user=user):
         BlacklistedToken.objects.get_or_create(token=token)
+
+
+@transaction.atomic
+def inscrire_livreur(email: str, mot_de_passe: str) -> Livreur:
+    """Inscription autonome d'un livreur (signup public).
+
+    Le profil User est volontairement laissé incomplet (``nom``, ``prenom``,
+    ``telephone`` vides) : le livreur le complète ensuite via l'endpoint de
+    profil. Le compte démarre **non vérifié**.
+    """
+    if User.objects.filter(email=email).exists():
+        raise EmailDejaUtilise()
+
+    user = User.objects.create_user(
+        email=email,
+        nom="",
+        prenom="",
+        telephone="",
+        password=mot_de_passe,
+        role=Role.LIVREUR,
+        actif=True,
+        mot_de_passe_temporaire=False,
+    )
+    return Livreur.objects.create(
+        user=user,
+        disponible=False,
+        actif=True,
+        verifie=False,
+    )
+
+
+@transaction.atomic
+def completer_profil_livreur(user, data: dict) -> User:
+    """Complète (ou met à jour) le profil User d'un livreur."""
+    champs = ("nom", "prenom", "telephone")
+    modifies = [champ for champ in champs if champ in data]
+    if modifies:
+        for champ in modifies:
+            setattr(user, champ, data[champ])
+        user.save(update_fields=modifies)
+    return user
+
+
+@transaction.atomic
+def enregistrer_document(livreur, document_requis, fichier) -> DocumentLivreur:
+    """Crée ou remplace le document d'un livreur pour un document requis.
+
+    Un nouvel envoi repasse le document au statut ``en_attente`` et réinitialise
+    le commentaire de l'admin.
+    """
+    document, _ = DocumentLivreur.objects.update_or_create(
+        livreur=livreur,
+        document_requis=document_requis,
+        defaults={
+            "fichier": fichier,
+            "statut": StatutDocument.EN_ATTENTE,
+            "commentaire": "",
+            "date_validation": None,
+        },
+    )
+    recalculer_verification(livreur)
+    return document
+
+
+def documents_obligatoires():
+    """Documents requis actifs marqués comme obligatoires."""
+    return DocumentRequis.objects.filter(actif=True, obligatoire=True)
+
+
+def recalculer_verification(livreur) -> bool:
+    """Recalcule ``livreur.verifie``.
+
+    Le livreur devient vérifié dès que **tous** les documents obligatoires
+    actifs ont un document validé par l'admin. S'il n'existe aucun document
+    obligatoire, le statut n'est pas modifié automatiquement.
+    """
+    obligatoires = documents_obligatoires()
+    if not obligatoires.exists():
+        return livreur.verifie
+
+    valides = set(
+        DocumentLivreur.objects.filter(
+            livreur=livreur, statut=StatutDocument.VALIDE
+        ).values_list("document_requis_id", flat=True)
+    )
+    tous_valides = all(doc.id in valides for doc in obligatoires)
+
+    if tous_valides != livreur.verifie:
+        livreur.verifie = tous_valides
+        livreur.save(update_fields=["verifie"])
+    return livreur.verifie
+
+
+@transaction.atomic
+def valider_document(document, commentaire: str = "") -> DocumentLivreur:
+    """L'admin valide un document ; la vérification du livreur est recalculée."""
+    document.statut = StatutDocument.VALIDE
+    document.commentaire = commentaire
+    document.date_validation = timezone.now()
+    document.save(update_fields=["statut", "commentaire", "date_validation"])
+    recalculer_verification(document.livreur)
+    return document
+
+
+@transaction.atomic
+def rejeter_document(document, commentaire: str = "") -> DocumentLivreur:
+    """L'admin rejette un document ; la vérification du livreur est recalculée."""
+    document.statut = StatutDocument.REJETE
+    document.commentaire = commentaire
+    document.date_validation = timezone.now()
+    document.save(update_fields=["statut", "commentaire", "date_validation"])
+    recalculer_verification(document.livreur)
+    return document
+
+
+@transaction.atomic
+def changer_verification(livreur, verifie: bool) -> Livreur:
+    """Bascule manuelle du statut de vérification par l'administrateur.
+
+    Permet à l'admin de vérifier (ou de retirer la vérification d') un livreur
+    indépendamment de l'état des documents.
+    """
+    livreur.verifie = bool(verifie)
+    livreur.save(update_fields=["verifie"])
+    return livreur

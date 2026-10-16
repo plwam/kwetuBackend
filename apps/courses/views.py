@@ -1,4 +1,6 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -53,13 +55,26 @@ class PaginationStandard(PageNumberPagination):
 # ---------- Vues ----------
 
 class DashboardView(APIView):
+    """Tableau de bord des courses (admin).
+
+    Renvoie les compteurs du jour par statut (créées, acceptées, récupérées,
+    livrées, annulées) destinés au dashboard administrateur.
+    """
+
     permission_classes = [IsAdmin]
 
+    @extend_schema(responses=OpenApiTypes.OBJECT)
     def get(self, request):
         return reponse_succes(get_stats_dashboard())
 
 
 class CourseAdminViewSet(viewsets.ReadOnlyModelViewSet):
+    """Consultation des courses par l'administrateur (lecture seule).
+
+    Liste paginée et filtrable (``statut``, ``partenaire``, ``livreur``,
+    ``zone``, ``date``) et détail d'une course incluant son historique.
+    """
+
     permission_classes = [IsAdmin]
     pagination_class = PaginationStandard
 
@@ -80,8 +95,16 @@ class CourseAdminViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class AssignerCourseView(APIView):
+    """Affectation manuelle d'une course à un livreur (admin).
+
+    Un administrateur affecte une course au statut ``creee`` à un livreur
+    éligible (actif, disponible et vérifié). La course passe alors au statut
+    ``acceptee``.
+    """
+
     permission_classes = [IsAdmin]
 
+    @extend_schema(request=AssignerSerializer, responses=CourseSerializer)
     def post(self, request, pk):
         serializer = AssignerSerializer(data=request.data)
         if not serializer.is_valid():

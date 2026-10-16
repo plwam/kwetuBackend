@@ -103,6 +103,9 @@ def assigner_course(course_id, livreur_id, acteur=None):
     if not livreur.actif or not livreur.disponible:
         raise LivreurNonEligible("Ce livreur n'est pas actif ou pas disponible")
 
+    if not livreur.verifie:
+        raise LivreurNonEligible("Ce livreur n'est pas vérifié")
+
     # 5. Créer l'affectation et lier le livreur à la course
     Affectation.objects.create(
         course=course,
