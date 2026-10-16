@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from django.test import TestCase
 
+from apps.accounts.models import Partenaire, User
+from apps.courses.models import Course
 from apps.logistics.exceptions import TarifIntrouvable
 from apps.logistics.models import Tarif, Zone
 from apps.logistics.services import (
@@ -127,10 +129,32 @@ class ZoneEstUtiliseeTest(TestCase):
     """Tests du service zone_est_utilisee()."""
 
     def setUp(self):
-        """Préparation : créer zones."""
+        """Préparation : créer zones et un partenaire."""
         self.zone_a = Zone.objects.create(nom="Himbi")
         self.zone_b = Zone.objects.create(nom="Birene")
         self.zone_c = Zone.objects.create(nom="Katindo")
+        utilisateur = User.objects.create_user(
+            email="partenaire@test.com",
+            nom="Kivu",
+            prenom="Shop",
+            telephone="+243900000000",
+            role="PARTENAIRE",
+        )
+        self.partenaire = Partenaire.objects.create(
+            user=utilisateur, nom_boutique="Kivu Shop"
+        )
+
+    def _creer_course(self, zone_depart, zone_arrivee):
+        """Crée une course avec tous les champs obligatoires."""
+        return Course.objects.create(
+            partenaire=self.partenaire,
+            zone_depart=zone_depart,
+            zone_arrivee=zone_arrivee,
+            destinataire_nom="Client",
+            destinataire_tel="+243970000001",
+            description_colis="Colis",
+            prix_usd=Decimal("4.00"),
+        )
 
     def test_zone_non_utilisee(self):
         """Sans course, la zone n'est pas utilisée."""
@@ -138,35 +162,17 @@ class ZoneEstUtiliseeTest(TestCase):
 
     def test_zone_utilisee_en_depart(self):
         """Une zone utilisée en départ est utilisée."""
-        from apps.courses.models import Course
-
-        Course.objects.create(
-            zone_depart=self.zone_a,
-            zone_arrivee=self.zone_b,
-            # ... autres champs obligatoires ...
-        )
+        self._creer_course(self.zone_a, self.zone_b)
         self.assertTrue(zone_est_utilisee(self.zone_a.id))
 
     def test_zone_utilisee_en_arrivee(self):
         """Une zone utilisée en arrivée est utilisée."""
-        from apps.courses.models import Course
-
-        Course.objects.create(
-            zone_depart=self.zone_b,
-            zone_arrivee=self.zone_a,
-            # ... autres champs obligatoires ...
-        )
+        self._creer_course(self.zone_b, self.zone_a)
         self.assertTrue(zone_est_utilisee(self.zone_a.id))
 
     def test_zone_non_utilisee_parmi_dautres(self):
         """Une zone non utilisée n'est pas marquée utilisée."""
-        from apps.courses.models import Course
-
-        Course.objects.create(
-            zone_depart=self.zone_a,
-            zone_arrivee=self.zone_b,
-            # ...
-        )
+        self._creer_course(self.zone_a, self.zone_b)
         self.assertFalse(zone_est_utilisee(self.zone_c.id))
 
 

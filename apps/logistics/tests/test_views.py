@@ -4,7 +4,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.logistics.models import StatutZone, Tarif, Zone
+from apps.logistics.models import Tarif, Zone
 
 
 class ZoneViewSetTest(TestCase):
@@ -15,6 +15,9 @@ class ZoneViewSetTest(TestCase):
         self.client = APIClient()
         self.admin = User.objects.create_user(
             email="admin@test.com",
+            nom="Admin",
+            prenom="Test",
+            telephone="+243900000000",
             password="password123",
             role="ADMIN",
         )
@@ -71,6 +74,9 @@ class ZoneViewSetTest(TestCase):
         """Un partenaire ne peut pas accéder à l'admin → 403."""
         partenaire = User.objects.create_user(
             email="partenaire@test.com",
+            nom="Partenaire",
+            prenom="Test",
+            telephone="+243900000001",
             password="password123",
             role="PARTENAIRE",
         )
@@ -87,6 +93,9 @@ class TarifViewSetTest(TestCase):
         self.client = APIClient()
         self.admin = User.objects.create_user(
             email="admin@test.com",
+            nom="Admin",
+            prenom="Test",
+            telephone="+243900000000",
             password="password123",
             role="ADMIN",
         )

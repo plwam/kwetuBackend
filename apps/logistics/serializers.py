@@ -11,6 +11,13 @@ class ZoneSerializer(serializers.ModelSerializer):
     Utilisé pour le CRUD admin.
     """
 
+    # L'unicité du nom est gérée par la vue (code « zone_existe ») et non par
+    # le UniqueValidator automatique de DRF, pour renvoyer un code d'erreur métier.
+    nom = serializers.CharField(
+        max_length=Zone._meta.get_field("nom").max_length,
+        validators=[],
+    )
+
     class Meta:
         model = Zone
         fields = ["id", "nom", "description", "statut"]
