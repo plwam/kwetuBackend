@@ -21,10 +21,32 @@ from apps.courses.services import assigner_course, changer_statut, zone_est_util
 
 from apps.accounts.models import Livreur, Partenaire, User
 
+from apps.accounts.models import User, Role   # adapte selon tes imports
+
+def creer_utilisateur(
+    email="user@example.com",
+    nom="Nom",
+    prenom="Prenom",
+    telephone="+243900000000",
+    password="x",
+    **extra,
+):
+    return User.objects.create_user(
+        email=email,
+        nom=nom,
+        prenom=prenom,
+        telephone=telephone,
+        password=password,
+        **extra,
+    )
+
+
+
 class TestChangerStatut(TestCase):
 
     def setUp(self):
-        user = User.objects.create_user(username="boutique", password="x")
+        user = creer_utilisateur(email="boutique@example.com")
+
         self.partenaire = Partenaire.objects.create(user=user, nom_boutique="Boutique")
         self.zone_a = Zone.objects.create(nom="Zone A")
         self.zone_b = Zone.objects.create(nom="Zone B")
@@ -83,17 +105,24 @@ class TestChangerStatut(TestCase):
     def test_echec_webhook_ne_bloque_pas_le_statut(self):
         with patch(
             "apps.partners.services.envoyer_webhook",
-            create=True,
-        ) as webhook:
-            webhook.delay.side_effect = Exception("panne")
+            side_effect=Exception("panne"),
+        ):
             with self.captureOnCommitCallbacks(execute=True):
                 course = changer_statut(self.course.id, StatutCourse.ACCEPTEE)
         self.assertEqual(course.statut, StatutCourse.ACCEPTEE)
 
+    def test_webhook_appele_avec_les_bons_arguments(self):
+        with patch("apps.partners.services.envoyer_webhook") as webhook:
+            with self.captureOnCommitCallbacks(execute=True):
+                changer_statut(self.course.id, StatutCourse.ACCEPTEE)
+        webhook.assert_called_once_with(
+            self.course.id, StatutCourse.CREEE, StatutCourse.ACCEPTEE
+        )
+
 class TestReferenceCourse(TestCase):
 
     def setUp(self):
-        user = User.objects.create_user(username="boutique", password="x")
+        user = creer_utilisateur(email="boutique@example.com")
         self.partenaire = Partenaire.objects.create(user=user, nom_boutique="Boutique")
         self.zone_a = Zone.objects.create(nom="Zone A")
         self.zone_b = Zone.objects.create(nom="Zone B")
