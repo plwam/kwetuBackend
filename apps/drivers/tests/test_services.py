@@ -9,7 +9,7 @@ from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 from apps.courses.enums import StatutAffectation, StatutCourse
 from apps.courses.exceptions import ConflitConcurrence, TransitionInvalide
-from apps.courses.models import Affectation, Course, HistoriqueLivraison
+from apps.courses.models import Affectation, HistoriqueLivraison
 from apps.drivers import services
 from apps.drivers.exceptions import (
     CodeIncorrect,
@@ -37,7 +37,8 @@ class BaseTestServices(TestCase):
 class TestAccepterCourse(BaseTestServices):
     def test_acceptation_reussie(self):
         course = creer_course()
-        resultat = services.accepter_course(course.id, self.livreur)
+        with self.captureOnCommitCallbacks(execute=True):
+            resultat = services.accepter_course(course.id, self.livreur)
         course.refresh_from_db()
         self.assertEqual(resultat.statut, StatutCourse.ACCEPTEE)
         self.assertEqual(course.statut, StatutCourse.ACCEPTEE)
@@ -227,7 +228,7 @@ class TestAcceptationConcurrente(TransactionTestCase):
             finally:
                 connection.close()
         with patch("apps.partners.services.envoyer_webhook.delay"):
-            fils = [threading.Thread(target=tenter, args=(l,)) for l in livreurs]
+            fils = [threading.Thread(target=tenter, args=(livreur,)) for livreur in livreurs]
             for fil in fils:
                 fil.start()
             for fil in fils:
