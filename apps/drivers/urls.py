@@ -1,16 +1,30 @@
 from django.urls import path
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from apps.accounts.permissions import EstLivreur
 
+from apps.drivers.views import (
+    VueAccepterCourse,
+    VueCocherPaye,
+    VueCoursesDisponibles,
+    VueCoursesEnCours,
+    VueHistoriqueJour,
+    VueLivrerAvecCode,
+    VueMarquerRecupere,
+)
 
-class DummyLivreurView(APIView):
-    permission_classes = [EstLivreur]
-    
-    def get(self, request):
-        return Response({'detail': 'OK'})
-
+app_name = "drivers"
 
 urlpatterns = [
-    path('courses/', DummyLivreurView.as_view(), name='livreur-courses'),
+    path("courses/disponibles/", VueCoursesDisponibles.as_view(),
+         name="courses-disponibles"),
+    path("courses/en-cours/", VueCoursesEnCours.as_view(),
+         name="courses-en-cours"),
+    path("courses/<int:pk>/accepter/", VueAccepterCourse.as_view(),
+          name="accepter"),
+    path("courses/<int:pk>/recuperer/", VueMarquerRecupere.as_view(),
+         name="recuperer"),
+    path("courses/<int:pk>/livrer/", VueLivrerAvecCode.as_view(),
+         name="livrer"),
+    path("courses/<int:pk>/payer/", VueCocherPaye.as_view(),
+         name="payer"),
+    path("historique/", VueHistoriqueJour.as_view(),
+         name="historique"),
 ]
