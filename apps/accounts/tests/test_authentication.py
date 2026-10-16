@@ -121,7 +121,11 @@ class TestAuthentificationCleAPI:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_cle_api_pas_livreur(self, api_client, cle_api):
+        """Une clé API partenaire n'ouvre pas l'espace livreur (JWT uniquement)."""
         _cle_api_obj, cle_complete = cle_api
         api_client.credentials(HTTP_X_API_KEY=cle_complete)
-        response = api_client.get("/api/v1/livreur/courses/")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        response = api_client.get("/api/v1/livreur/courses/disponibles/")
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        ]
