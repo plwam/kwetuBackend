@@ -28,7 +28,7 @@ def _notifier_partenaire(course_id, ancien_statut, nouveau_statut):
         # Import local : évite l'import circulaire.
         from apps.partners.services import envoyer_webhook
 
-        envoyer_webhook(course_id, ancien_statut, nouveau_statut)
+        envoyer_webhook.delay(course_id, ancien_statut, nouveau_statut)
     except Exception:
         logger.exception("Échec du déclenchement du webhook pour la course %s", course_id)
 

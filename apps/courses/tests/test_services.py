@@ -103,19 +103,17 @@ class TestChangerStatut(TestCase):
         )
 
     def test_echec_webhook_ne_bloque_pas_le_statut(self):
-        with patch(
-            "apps.partners.services.envoyer_webhook",
-            side_effect=Exception("panne"),
-        ):
+        with patch("apps.partners.services.envoyer_webhook.delay") as mock_delay:
+            mock_delay.side_effect = Exception("panne")
             with self.captureOnCommitCallbacks(execute=True):
                 course = changer_statut(self.course.id, StatutCourse.ACCEPTEE)
         self.assertEqual(course.statut, StatutCourse.ACCEPTEE)
 
     def test_webhook_appele_avec_les_bons_arguments(self):
-        with patch("apps.partners.services.envoyer_webhook") as webhook:
+        with patch("apps.partners.services.envoyer_webhook.delay") as mock_delay:
             with self.captureOnCommitCallbacks(execute=True):
                 changer_statut(self.course.id, StatutCourse.ACCEPTEE)
-        webhook.assert_called_once_with(
+        mock_delay.assert_called_once_with(
             self.course.id, StatutCourse.CREEE, StatutCourse.ACCEPTEE
         )
 
