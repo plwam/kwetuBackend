@@ -1,14 +1,23 @@
+import secrets
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 
 from apps.courses.enums import StatutAffectation, StatutCourse
 
 
+def generer_code_confirmation():
+    """Code à 6 chiffres, généré avec un générateur sûr."""
+    return f"{secrets.randbelow(10**6):06d}"
+
+
 class Course(models.Model):
-    reference = models.CharField(max_length=20, unique=True)  # ex : GM-1042
+    reference = models.CharField(
+        max_length=20, unique=True, blank=True, editable=False
+    )  # ex : GM-1042
 
     partenaire = models.ForeignKey(
         "accounts.Partenaire",
@@ -50,7 +59,7 @@ class Course(models.Model):
         default=StatutCourse.CREEE,
         db_index=True,
     )
-    code_confirmation = models.CharField(max_length=10, blank=True)
+    code_confirmation = models.CharField(max_length=10, blank=True, editable=False)
     paye = models.BooleanField(default=False)
 
     date_creation = models.DateTimeField(auto_now_add=True)
@@ -58,6 +67,28 @@ class Course(models.Model):
 
     class Meta:
         ordering = ["-date_creation"]
+
+    def save(self, *args, **kwargs):
+        # Le code de confirmation est généré une seule fois, à la création.
+        if not self.code_confirmation:
+            self.code_confirmation = generer_code_confirmation()
+
+        # Course déjà référencée : sauvegarde normale.
+        if self.reference:
+            return super().save(*args, **kwargs)
+
+        # Création : référence temporaire unique, puis référence définitive basée sur l'id.
+        self.reference = f"TMP-{uuid.uuid4().hex[:15]}"
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            self.reference = f"GM-{self.pk:04d}"
+            super().save(update_fields=["reference"])
+
+    def verifier_code(self, code):
+        """True si le code saisi correspond au code de la course."""
+        if not self.code_confirmation or not code:
+            return False
+        return secrets.compare_digest(str(code), self.code_confirmation)
 
     def __str__(self):
         return f"{self.reference} ({self.statut})"

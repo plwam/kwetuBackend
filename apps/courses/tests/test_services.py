@@ -89,3 +89,67 @@ class TestChangerStatut(TestCase):
             with self.captureOnCommitCallbacks(execute=True):
                 course = changer_statut(self.course.id, StatutCourse.ACCEPTEE)
         self.assertEqual(course.statut, StatutCourse.ACCEPTEE)
+
+class TestReferenceCourse(TestCase):
+
+    def setUp(self):
+        user = User.objects.create_user(username="boutique", password="x")
+        self.partenaire = Partenaire.objects.create(user=user, nom_boutique="Boutique")
+        self.zone_a = Zone.objects.create(nom="Zone A")
+        self.zone_b = Zone.objects.create(nom="Zone B")
+
+    def _creer_course(self):
+        return Course.objects.create(
+            partenaire=self.partenaire,
+            zone_depart=self.zone_a,
+            zone_arrivee=self.zone_b,
+            destinataire_nom="Client",
+            destinataire_tel="000",
+            description_colis="Colis",
+            prix_usd=Decimal("5.00"),
+        )
+
+    def test_reference_generee_automatiquement(self):
+        course = self._creer_course()
+        self.assertEqual(course.reference, f"GM-{course.pk:04d}")
+        self.assertFalse(course.reference.startswith("TMP-"))
+
+    def test_references_uniques(self):
+        c1 = self._creer_course()
+        c2 = self._creer_course()
+        self.assertNotEqual(c1.reference, c2.reference)
+
+    def test_reference_inchangee_a_la_modification(self):
+        course = self._creer_course()
+        ancienne = course.reference
+        course.paye = True
+        course.save()
+        course.refresh_from_db()
+        self.assertEqual(course.reference, ancienne)
+
+    def test_code_confirmation_genere(self):
+        course = self._creer_course()
+        self.assertEqual(len(course.code_confirmation), 6)
+        self.assertTrue(course.code_confirmation.isdigit())
+
+    def test_code_inchange_a_la_modification(self):
+        course = self._creer_course()
+        ancien = course.code_confirmation
+        course.paye = True
+        course.save()
+        course.refresh_from_db()
+        self.assertEqual(course.code_confirmation, ancien)
+
+    def test_verifier_code_correct(self):
+        course = self._creer_course()
+        self.assertTrue(course.verifier_code(course.code_confirmation))
+
+    def test_verifier_code_incorrect(self):
+        course = self._creer_course()
+        faux = "000000" if course.code_confirmation != "000000" else "111111"
+        self.assertFalse(course.verifier_code(faux))
+
+    def test_verifier_code_vide(self):
+        course = self._creer_course()
+        self.assertFalse(course.verifier_code(""))
+        self.assertFalse(course.verifier_code(None))
