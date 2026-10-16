@@ -1,31 +1,25 @@
-from rest_framework.permissions import BasePermission
+from rest_framework import permissions
+
+from apps.accounts.enums import Role
 
 
-class EstAdmin(BasePermission):
-    """
-    Permission : autorise uniquement les utilisateurs avec le rôle ADMIN.
-    """
-
-    message = "Vous devez être administrateur pour accéder à cette ressource."
+class EstAdmin(permissions.BasePermission):
+    message = "Accès réservé aux administrateurs."
 
     def has_permission(self, request, view):
         return (
             request.user
             and request.user.is_authenticated
-            and getattr(request.user, "role", None) == "ADMIN"
+            and request.user.role == Role.ADMIN
         )
 
 
-class EstPartenaire(BasePermission):
-    """
-    Permission : autorise uniquement les utilisateurs avec le rôle PARTENAIRE.
-    """
-
-    message = "Vous devez être partenaire pour accéder à cette ressource."
+class EstPartenaire(permissions.BasePermission):
+    message = "Accès réservé aux partenaires."
 
     def has_permission(self, request, view):
         return (
             request.user
             and request.user.is_authenticated
-            and getattr(request.user, "role", None) == "PARTENAIRE"
+            and request.user.role == Role.PARTENAIRE
         )
