@@ -62,10 +62,11 @@ class TestCreation:
         )
 
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.data["prix"] == "4.00"
+        assert response.data["prix_usd"] == "4.00"
         assert response.data["statut"] == "creee"
         assert response.data["paye"] is False
-        assert response.data["reference"]
+        # La référence est générée par le modèle `Course` (format GM-####).
+        assert response.data["reference"].startswith("GM-")
         assert course_model.objects.count() == 1
 
     @patch("apps.logistics.services.calculer_prix", return_value=Decimal("4.00"))
@@ -75,14 +76,14 @@ class TestCreation:
         zone_depart = zone_model.objects.create(nom="Goma")
         zone_arrivee = zone_model.objects.create(nom="Kinshasa")
         payload = _payload(zone_depart, zone_arrivee)
-        payload["prix"] = "0.01"
+        payload["prix_usd"] = "0.01"
         payload["statut"] = "livree"
         payload["paye"] = True
 
         response = api_client.post(URL_LISTE, payload, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.data["prix"] == "4.00"
+        assert response.data["prix_usd"] == "4.00"
         assert response.data["statut"] == "creee"
         assert response.data["paye"] is False
 

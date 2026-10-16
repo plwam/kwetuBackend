@@ -229,7 +229,7 @@ Réponse 201 :
   "destinataire_nom": "Amani K.",
   "destinataire_tel": "+243970000000",
   "description_colis": "Robe en carton",
-  "prix": "4.00",
+  "prix_usd": "4.00",
   "statut": "creee",
   "paye": false,
   "date_creation": "2026-10-14T08:12:00Z",
@@ -237,7 +237,7 @@ Réponse 201 :
 }
 ```
 
-Le partenaire **ne peut pas** fournir `prix`, `statut`, `reference` ni `paye` : ces champs sont ignorés ou calculés par le serveur.
+Le partenaire **ne peut pas** fournir `prix_usd`, `statut`, `reference` ni `paye` : ces champs sont ignorés ou calculés par le serveur.
 
 **Suivi du statut** : `GET .../courses/42/statut/`
 
@@ -313,7 +313,7 @@ L'appel se fait toujours par `.delay()`, jamais en appel direct synchrone.
 | De | Attente | Si absent |
 | --- | --- | --- |
 | `accounts` | `CleAPIAuthentication` renvoie un utilisateur disposant de `.partenaire` ; `IsPartenaire` | Aucun accès possible |
-| `courses` | `Course` avec `partenaire`, `reference`, `prix`, `statut`, `historique` ; `changer_statut(course_id, nouveau)` | Création et annulation impossibles |
+| `courses` | `Course` avec `partenaire`, `reference`, `prix_usd`, `statut`, `historique` ; `changer_statut(course_id, nouveau)` | Création et annulation impossibles |
 | `courses` | Génération de `reference` (et du code de confirmation) par le modèle | Courses sans référence |
 | `logistics` | `calculer_prix()` renvoie un prix ou `None` si aucun tarif | Création impossible |
 
@@ -427,7 +427,7 @@ Le serveur ne fait **jamais** confiance aux données envoyées par le client :
 | `POST /courses/42/annuler/` sur la course d'un autre | 403 |
 | `GET /courses/99999/` inexistante | 404 |
 | Annuler une course `livree` | 409 |
-| Envoyer `"prix": "0.01"` à la création | Champ ignoré, prix calculé par le serveur |
+| Envoyer `"prix_usd": "0.01"` à la création | Champ ignoré, prix calculé par le serveur |
 | Utiliser un jeton livreur ou administrateur sur ces endpoints | 403 |
 
 ### 5.8. Distinction authentification / autorisation / restriction

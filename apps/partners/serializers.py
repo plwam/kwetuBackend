@@ -25,12 +25,7 @@ class CourseDetailSerializer(serializers.Serializer):
     destinataire_nom = serializers.CharField(read_only=True)
     destinataire_tel = serializers.CharField(read_only=True)
     description_colis = serializers.CharField(read_only=True)
-    prix = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        source="prix_usd",
-        read_only=True,
-    )
+    prix_usd = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     statut = serializers.CharField(read_only=True)
     paye = serializers.BooleanField(read_only=True)
     date_creation = serializers.DateTimeField(read_only=True)
@@ -47,7 +42,7 @@ class CourseCreateSerializer(serializers.Serializer):
     """
     Entrée de création d'une course.
 
-    Le partenaire ne fournit **que** ces cinq champs : ``prix``, ``statut``,
+    Le partenaire ne fournit **que** ces cinq champs : ``prix_usd``, ``statut``,
     ``reference`` et ``paye`` sont calculés ou fixés par le serveur et ignorés
     s'ils sont envoyés.
     """

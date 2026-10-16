@@ -57,7 +57,7 @@ class PartenaireCourseViewSet(viewsets.ModelViewSet):
       "destinataire_nom": "Amani K.",
       "destinataire_tel": "+243970000000",
       "description_colis": "Robe en carton",
-      "prix": "4.00",
+      "prix_usd": "4.00",
       "statut": "creee",
       "paye": false,
       "date_creation": "2026-10-14T08:12:00Z",

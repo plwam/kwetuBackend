@@ -78,14 +78,16 @@ def zone_model():
 
 @pytest.fixture
 def creer_course_factory(course_model, zone_model):
-    """Fabrique une course rattachée à un partenaire donné."""
-    compteur = {"n": 0}
+    """Fabrique une course rattachée à un partenaire donné.
+
+    La ``reference`` et le ``code_confirmation`` sont générés par le modèle
+    ``Course`` (voir ``apps/courses/models.py``) ; la fabrique ne les fournit
+    donc pas.
+    """
 
     def _make(partenaire, statut="creee", prix=Decimal("4.00"), **kwargs):
         zone_depart, _ = zone_model.objects.get_or_create(nom="Goma")
         zone_arrivee, _ = zone_model.objects.get_or_create(nom="Kinshasa")
-        compteur["n"] += 1
-        kwargs.setdefault("reference", f"GM-{compteur['n']:04d}")
         return course_model.objects.create(
             partenaire=partenaire,
             zone_depart=zone_depart,
