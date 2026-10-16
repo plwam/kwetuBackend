@@ -3,7 +3,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from .enums import Role, StatutCleAPI
-from .exceptions import CleAPIInvalide, EmailDejaUtilise
+from .exceptions import (
+    AncienMotDePasseInvalide,
+    CleAPIInvalide,
+    EmailDejaUtilise,
+    MotDePasseIdentique,
+)
 from .models import CleAPI, Livreur, Partenaire
 
 User = get_user_model()
@@ -23,6 +28,7 @@ def creer_partenaire(data: dict) -> Partenaire:
         password=data["mot_de_passe"],
         role=Role.PARTENAIRE,
         actif=True,
+        mot_de_passe_temporaire=True,
     )
 
     partenaire = Partenaire.objects.create(
@@ -52,6 +58,7 @@ def creer_livreur(data: dict) -> Livreur:
         password=data["mot_de_passe"],
         role=Role.LIVREUR,
         actif=True,
+        mot_de_passe_temporaire=True,
     )
 
     livreur = Livreur.objects.create(
@@ -167,3 +174,32 @@ def reactiver_livreur(livreur_id: int, admin_user: User) -> Livreur:
     livreur.user.save(update_fields=["actif"])
 
     return livreur
+
+
+@transaction.atomic
+def changer_mot_de_passe(
+    user: User, ancien_mot_de_passe: str, nouveau_mot_de_passe: str
+) -> None:
+    """Change le mot de passe de l'utilisateur authentifié.
+
+    Sécurité :
+    - Vérifie l'ancien mot de passe (preuve d'identité, même si le token est volé)
+    - Invalide TOUS les refresh tokens de l'utilisateur (force re-login partout)
+    - Désactive le flag mot_de_passe_temporaire
+    """
+    from rest_framework_simplejwt.token_blacklist.models import (
+        BlacklistedToken,
+        OutstandingToken,
+    )
+
+    if not user.check_password(ancien_mot_de_passe):
+        raise AncienMotDePasseInvalide()
+    if user.check_password(nouveau_mot_de_passe):
+        raise MotDePasseIdentique()
+
+    user.set_password(nouveau_mot_de_passe)
+    user.mot_de_passe_temporaire = False
+    user.save(update_fields=["password", "mot_de_passe_temporaire"])
+
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)

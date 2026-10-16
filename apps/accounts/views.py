@@ -13,6 +13,7 @@ from .models import Livreur, Partenaire
 from .permissions import EstAdmin, EstAuthentifie
 from .serializers import (
     CleAPISerializer,
+    ChangerMotDePasseSerializer,
     LivreurSerializer,
     LivreurUpdateSerializer,
     LoginSerializer,
@@ -60,9 +61,38 @@ class LogoutView(APIView):
             )
 
 
+class ChangerMotDePasseView(APIView):
+    """POST /auth/changer-mot-de-passe/
+
+    Sécurité :
+    - JWT obligatoire : seul le propriétaire du token peut changer SON mot de passe
+    - Aucun user_id dans la requête : impossible de cibler un autre compte
+    - Ancien mot de passe vérifié (preuve d'identité même si token volé)
+    - Tous les refresh tokens invalidés après changement (force re-login partout)
+    """
+
+    permission_classes: ClassVar[list] = [EstAuthentifie]
+
+    def post(self, request):
+        serializer = ChangerMotDePasseSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {
+                "detail": (
+                    "Mot de passe changé avec succès. " "Veuillez vous reconnecter."
+                )
+            }
+        )
+
+
 class PartenaireViewSet(viewsets.ModelViewSet):
     permission_classes: ClassVar[list] = [EstAdmin]
-    queryset = Partenaire.objects.select_related("user").all().order_by("-date_creation")
+    queryset = (
+        Partenaire.objects.select_related("user").all().order_by("-date_creation")
+    )
     serializer_class = PartenaireSerializer
     ordering = ["-date_creation"]
 
@@ -72,7 +102,9 @@ class PartenaireViewSet(viewsets.ModelViewSet):
         return PartenaireSerializer
 
     def get_queryset(self):
-        return Partenaire.objects.select_related("user").all().order_by("-date_creation")
+        return (
+            Partenaire.objects.select_related("user").all().order_by("-date_creation")
+        )
 
     @action(detail=True, methods=["post"], url_path="generer-cle")
     def generer_cle(self, request, pk=None):

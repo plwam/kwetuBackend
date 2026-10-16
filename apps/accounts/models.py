@@ -42,6 +42,10 @@ class User(AbstractUser):
     telephone = models.CharField(max_length=20, verbose_name="Téléphone")
     role = models.CharField(max_length=20, choices=Role.choices(), verbose_name="Rôle")
     actif = models.BooleanField(default=True, verbose_name="Compte actif")
+    mot_de_passe_temporaire = models.BooleanField(
+        default=False,
+        verbose_name="Mot de passe temporaire (doit être changé à la 1ère connexion)",
+    )
     date_creation = models.DateTimeField(
         auto_now_add=True, verbose_name="Date de création"
     )

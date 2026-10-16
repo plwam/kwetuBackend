@@ -37,6 +37,20 @@ class TransitionInvalide(Exception):
         super().__init__(self.message)
 
 
+class AncienMotDePasseInvalide(Exception):
+    def __init__(self, message="L'ancien mot de passe est incorrect."):
+        self.message = message
+        super().__init__(self.message)
+
+
+class MotDePasseIdentique(Exception):
+    def __init__(
+        self, message="Le nouveau mot de passe doit être différent de l'ancien."
+    ):
+        self.message = message
+        super().__init__(self.message)
+
+
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
 

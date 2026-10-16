@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -43,6 +44,7 @@ class UserMeSerializer(serializers.ModelSerializer):
             "role",
             "role_display",
             "actif",
+            "mot_de_passe_temporaire",
             "nom_complet",
             "date_creation",
             "partenaire",
@@ -176,6 +178,59 @@ class CleAPISerializer(serializers.ModelSerializer):
             "date_revocation",
         )
         read_only_fields = fields
+
+
+class ChangerMotDePasseSerializer(serializers.Serializer):
+    """Aucun champ user_id accepté : on change SEULEMENT le mot de passe de request.user."""
+
+    ancien_mot_de_passe = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
+    )
+    nouveau_mot_de_passe = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
+    )
+    confirmation = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
+    )
+
+    def validate_ancien_mot_de_passe(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("L'ancien mot de passe est incorrect.")
+        return value
+
+    def validate(self, attrs):
+        from django.contrib.auth.password_validation import validate_password
+
+        if attrs["nouveau_mot_de_passe"] != attrs["confirmation"]:
+            raise serializers.ValidationError(
+                {
+                    "confirmation": "La confirmation ne correspond pas au nouveau mot de passe."
+                }
+            )
+        if attrs["ancien_mot_de_passe"] == attrs["nouveau_mot_de_passe"]:
+            raise serializers.ValidationError(
+                {
+                    "nouveau_mot_de_passe": "Le nouveau mot de passe doit être différent de l'ancien."
+                }
+            )
+        user = self.context["request"].user
+        try:
+            validate_password(attrs["nouveau_mot_de_passe"], user=user)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(
+                {"nouveau_mot_de_passe": list(e.messages)}
+            )
+        return attrs
+
+    def save(self, **kwargs):
+        from .services import changer_mot_de_passe
+
+        changer_mot_de_passe(
+            self.context["request"].user,
+            self.validated_data["ancien_mot_de_passe"],
+            self.validated_data["nouveau_mot_de_passe"],
+        )
 
 
 class LoginSerializer(TokenObtainPairSerializer):
